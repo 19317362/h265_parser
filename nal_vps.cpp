@@ -8,7 +8,7 @@ void nal_vps_init() {
 
 }
 
-void nal_vps_parse(nal_buffer_t * pnal_buffer) {
+void nal_vps_parse(nal_buffer_t * pnal_buffer, void * dummy) {
 	pnal_buffer->pos += 2; // skip header
 	
 	/*

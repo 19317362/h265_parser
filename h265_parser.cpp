@@ -10,6 +10,7 @@
 #include "nal_sei.h"
 #include "nal_sps.h"
 #include "nal_vps.h"
+#include <cstdlib>
 
 // read chunk for stream
 #define READ_BUF_LEN 16384 
@@ -47,11 +48,11 @@ const char * NAL_UNIT_TYPES[NALUT_MAX+1] = {
 };
 
 typedef void(*nal_unit_initer)();
-typedef void(*nal_unit_parser)(nal_buffer_t *);
+typedef void(*nal_unit_parser)(nal_buffer_t *, void *);
 
 // stubs for ignored NAL units
 void nal_noinit() { }
-void nal_noparse(nal_buffer_t * pnal_buffer) { }
+void nal_noparse(nal_buffer_t * pnal_buffer, void * dummy) { }
 
 bool need_nal_copy[NALUT_MAX + 1] = {
 	false, false, false, false, false, false, false, false,	// 0
@@ -81,7 +82,7 @@ nal_unit_parser nal_parsers[NALUT_MAX + 1] = {
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 16 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 24 
 
-	nal_vps_parse, nal_sps_parse, nal_pps_parse, nal_aud_parse, nal_noparse, nal_noparse, nal_noparse, nal_sei_prefix_parse,// 32 
+	nal_vps_parse, (nal_unit_parser)nal_sps_parse, nal_pps_parse, nal_aud_parse, nal_noparse, nal_noparse, nal_noparse, nal_sei_prefix_parse,// 32 
 	nal_sei_suffix_parse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 40 
 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 48 
@@ -108,11 +109,13 @@ int main(int argc, char ** argv)
 	bool extra_zero = false;
 	nal_buffer_t nal_buffer = { 0 };
 	uint8 nut = 0;
+	uint64 filePos = 0;
 
 	while (!feof(inf)) {
 		size_t bytes_read = fread(buffer, 1, READ_BUF_LEN, inf);
 
 		for (int i = 0; i < bytes_read; i++) {
+			filePos++;
 			switch (state) {
 				case STATE_EXPECTING_ZERO_0:
 					if (buffer[i] == 0) {
@@ -162,7 +165,18 @@ int main(int argc, char ** argv)
 					nal_buffer.posmax = nal_buffer.pos;
 					nal_buffer.pos = 0;
 					nal_buffer.bitpos = 8;
-					nal_parsers[nut](&nal_buffer);
+					if (nut != SPS_NUT)
+					{
+						nal_parsers[nut](&nal_buffer, NULL);
+					}
+					else
+					{
+						nal_sps_data_t * p;
+						p = (nal_sps_data_t *)malloc(sizeof(nal_sps_data_t));
+						memset(p, 0, sizeof(nal_sps_data_t));
+						nal_parsers[nut](&nal_buffer, p);
+						free(p);
+					}
 					//fprintf(stdout, "\n");
 
 					nut = (buffer[i] & 0x7e) >> 1;

@@ -6,7 +6,7 @@
 void nal_pps_init() {
 }
 
-void nal_pps_parse(nal_buffer_t * pnal_buffer) {
+void nal_pps_parse(nal_buffer_t * pnal_buffer, void * dummy) {
 	dump_nal_buffer(pnal_buffer);
 	pnal_buffer->pos += 2;
 	fprintf(stdout, "\tpps_pic_parameter_set_id=%d\n", read_uev(pnal_buffer));
@@ -68,7 +68,7 @@ void nal_pps_parse(nal_buffer_t * pnal_buffer) {
 	uint8 pps_scaling_list_data_present_flag = read_bit(pnal_buffer);
 	fprintf(stdout, "\tpps_scaling_list_data_present_flag=%d\n", pps_scaling_list_data_present_flag);
 	if (pps_scaling_list_data_present_flag) {
-		scaling_list_data(pnal_buffer);
+		print_scaling_list_data(pnal_buffer);
 	}
 
 	fprintf(stdout, "\tlists_modification_present_flag=%d\n", read_bit(pnal_buffer));

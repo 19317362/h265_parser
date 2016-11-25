@@ -4,7 +4,7 @@ void nal_aud_init() {
 
 }
 
-void nal_aud_parse(nal_buffer_t * pnal_buffer) {
+void nal_aud_parse(nal_buffer_t * pnal_buffer, void * dummy) {
 	//printf("\taud.pic_type=%d\n", (nal_buffer.data[2] & 0xe0) >> 5);
 }
 

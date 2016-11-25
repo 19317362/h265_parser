@@ -4,12 +4,14 @@
 #include "bio.h"
 #include "cio.h"
 #include "nal_common.h"
+#include "nal_sps.h"
+#include <cstring>
 
 void nal_sps_init() {
 
 }
 
-void nal_sps_parse(nal_buffer_t * pnal_buffer) {
+void print_nal_sps_parse(nal_buffer_t * pnal_buffer) {
 	dump_nal_buffer(pnal_buffer);
 	pnal_buffer->pos += 2;
 
@@ -17,7 +19,7 @@ void nal_sps_parse(nal_buffer_t * pnal_buffer) {
 	uint8 sps_max_sub_layers_minus1 = read_bits(pnal_buffer, 3);
 	fprintf(stdout, "\tsps_max_sub_layers_minus1=%d\n", sps_max_sub_layers_minus1);
 	fprintf(stdout, "\tsps_temporal_id_nesting_flag=%d\n", read_bit(pnal_buffer));
-	profile_tier_level(pnal_buffer, sps_max_sub_layers_minus1);
+	print_profile_tier_level(pnal_buffer, sps_max_sub_layers_minus1);
 	fprintf(stdout, "\tsps_seq_parameter_set_id=%d\n", read_uev(pnal_buffer));
 	uint8 chroma_format_idc = read_uev(pnal_buffer);														read_uev(pnal_buffer); read_uev(pnal_buffer); read_uev(pnal_buffer); read_bit(pnal_buffer); // somewhere lost 3 uev + 1 bit, does not work w/o this
 	fprintf(stdout, "\tchroma_format_idc=%d\n", chroma_format_idc);
@@ -60,7 +62,7 @@ void nal_sps_parse(nal_buffer_t * pnal_buffer) {
 		uint8 sps_scaling_list_data_present_flag = read_bit(pnal_buffer);
 		fprintf(stdout, "\tsps_scaling_list_data_present_flag=%d\n", sps_scaling_list_data_present_flag);
 		if (sps_scaling_list_data_present_flag) {
-			scaling_list_data(pnal_buffer);
+			print_scaling_list_data(pnal_buffer);
 		}
 	}
 	fprintf(stdout, "\tamp_enabled_flag=%d\n", read_bit(pnal_buffer));
@@ -78,7 +80,7 @@ void nal_sps_parse(nal_buffer_t * pnal_buffer) {
 	uint32 num_short_term_ref_pic_sets = read_uev(pnal_buffer);
 	fprintf(stdout, "\tnum_short_term_ref_pic_sets=%d\n", num_short_term_ref_pic_sets);
 	for (int i = 0; i < num_short_term_ref_pic_sets; i++) {
-		short_term_ref_pic_set(pnal_buffer, i, num_short_term_ref_pic_sets);
+		print_short_term_ref_pic_set(pnal_buffer, i, num_short_term_ref_pic_sets);
 	}
 	uint8 long_term_ref_pics_present_flag = read_bit(pnal_buffer);
 	fprintf(stdout, "\tlong_term_ref_pics_present_flag=%d\n", long_term_ref_pics_present_flag);
@@ -95,7 +97,202 @@ void nal_sps_parse(nal_buffer_t * pnal_buffer) {
 	uint8 vui_parameters_present_flag = read_bit(pnal_buffer);
 	fprintf(stdout, "\tvui_parameters_present_flag=%d\n", vui_parameters_present_flag);
 	if (vui_parameters_present_flag) {
-		vui_parameters(pnal_buffer, sps_max_sub_layers_minus1);
+		print_vui_parameters(pnal_buffer, sps_max_sub_layers_minus1);
 	}
 	fprintf(stdout, "\tsps_extension_flag=%d\n", read_bit(pnal_buffer));
+}
+
+void nal_sps_parse(nal_buffer_t * pnal_buffer, nal_sps_data_t * nal_sps_data) {
+	//dump_nal_buffer(pnal_buffer);
+	//pnal_buffer->pos += 2;
+//	uint16 nal_unit_header = (uint16)read_bits(pnal_buffer, 16);
+	nal_sps_data->nal_unit_header.forbidden_zero_bit |=  (uint16)read_bits(pnal_buffer, 1);
+	nal_sps_data->nal_unit_header.nal_unit_type |=  (uint16)read_bits(pnal_buffer, 6);
+	nal_sps_data->nal_unit_header.nuh_layer_id |=  (uint16)read_bits(pnal_buffer, 6);
+	nal_sps_data->nal_unit_header.nuh_temporal_id_plus1 |=  (uint16)read_bits(pnal_buffer, 3);
+	//todo попечатать что тут вообще прочиталось, может быть задом наперед
+//	nal_sps_data->nal_unit_header = *(nal_unit_header_t *)&nal_unit_header;
+	nal_sps_data->sps_video_parameter_set_id = (uint8)read_bits(pnal_buffer, 4);
+	nal_sps_data->sps_max_sub_layers_minus1 = (uint8)read_bits(pnal_buffer, 3);
+	nal_sps_data->sps_temporal_id_nesting_flag = (uint8)read_bit(pnal_buffer);
+	profile_tier_level(pnal_buffer, nal_sps_data->sps_max_sub_layers_minus1, &nal_sps_data->profile_tier_level);
+	nal_sps_data->sps_seq_parameter_set_id = read_uev(pnal_buffer);
+	/* somewhere lost 3 uev + 1 bit, does not work w/o this */
+	//todo разобраться откуда лишее - скорее всего не правильно в profile_tier_level
+//	read_uev(pnal_buffer); 
+//	read_uev(pnal_buffer); 
+//	read_uev(pnal_buffer); 
+//	read_bit(pnal_buffer);  
+
+	nal_sps_data->chroma_format_idc = read_uev(pnal_buffer);
+	if (nal_sps_data->chroma_format_idc == 3) {
+		nal_sps_data->separate_colour_plane_flag = (uint8)read_bit(pnal_buffer);
+	}
+	nal_sps_data->pic_width_in_luma_samples = read_uev(pnal_buffer);
+	nal_sps_data->pic_height_in_luma_samples= read_uev(pnal_buffer);
+	nal_sps_data->conformance_window_flag = (uint8)read_bit(pnal_buffer);
+	if (nal_sps_data->conformance_window_flag) {
+		nal_sps_data->conf_win_left_offset = read_uev(pnal_buffer);
+		nal_sps_data->conf_win_right_offset = read_uev(pnal_buffer);
+		nal_sps_data->conf_win_top_offset = read_uev(pnal_buffer);
+		nal_sps_data->conf_win_bottom_offset = read_uev(pnal_buffer);
+	}
+	nal_sps_data->bit_depth_luma_minus8 = read_uev(pnal_buffer);
+	nal_sps_data->bit_depth_chroma_minus8 = read_uev(pnal_buffer);
+	nal_sps_data->log2_max_pic_order_cnt_lsb_minus4 = read_uev(pnal_buffer);
+
+	nal_sps_data->sps_sub_layer_ordering_info_present_flag = read_bit(pnal_buffer);
+
+	for (int i = (nal_sps_data->sps_sub_layer_ordering_info_present_flag ? 0 : nal_sps_data->sps_max_sub_layers_minus1);
+		i <= nal_sps_data->sps_max_sub_layers_minus1; i++) {
+		nal_sps_data->sps_max_dec_pic_buffering_minus1[i] = read_uev(pnal_buffer);
+		nal_sps_data->sps_max_num_reorder_pics[i] = read_uev(pnal_buffer);
+		nal_sps_data->sps_max_latency_increase_plus1[i] = read_uev(pnal_buffer);
+	}
+	nal_sps_data->log2_min_luma_coding_block_size_minus3 = read_uev(pnal_buffer);
+	nal_sps_data->log2_diff_max_min_luma_coding_block_size = read_uev(pnal_buffer);
+	nal_sps_data->log2_min_transform_block_size_minus2 = read_uev(pnal_buffer);
+	nal_sps_data->log2_diff_max_min_transform_block_size = read_uev(pnal_buffer);
+	nal_sps_data->max_transform_hierarchy_depth_inter = read_uev(pnal_buffer);
+	nal_sps_data->max_transform_hierarchy_depth_intra = read_uev(pnal_buffer);
+	nal_sps_data->scaling_list_enabled_flag = (uint8)read_bit(pnal_buffer);
+	if (nal_sps_data->scaling_list_enabled_flag) {
+		
+		nal_sps_data->sps_scaling_list_data_present_flag = (uint8)read_bit(pnal_buffer);
+		if (nal_sps_data->sps_scaling_list_data_present_flag) {
+			scaling_list_data(pnal_buffer, &nal_sps_data->scaling_list_data);
+		}
+	}
+	nal_sps_data->amp_enabled_flag = read_bit(pnal_buffer);
+	nal_sps_data->sample_adaptive_offset_enabled_flag = read_bit(pnal_buffer);
+
+	nal_sps_data->pcm_enabled_flag = (uint8)read_bit(pnal_buffer);
+	if (nal_sps_data->pcm_enabled_flag) {
+		nal_sps_data->pcm_sample_bit_depth_luma_minus1 = read_bits(pnal_buffer, 4);
+		nal_sps_data->pcm_sample_bit_depth_chroma_minus1 = read_bits(pnal_buffer, 4);
+		nal_sps_data->log2_min_pcm_luma_coding_block_size_minus3 = read_uev(pnal_buffer);
+		nal_sps_data->log2_diff_max_min_pcm_luma_coding_block_size = read_uev(pnal_buffer);
+		nal_sps_data->pcm_loop_filter_disable_flag = read_bit(pnal_buffer);
+	}
+	nal_sps_data->num_short_term_ref_pic_sets = read_uev(pnal_buffer);
+	for (int i = 0; i < nal_sps_data->num_short_term_ref_pic_sets; i++) {
+		short_term_ref_pic_set(pnal_buffer, i, nal_sps_data->num_short_term_ref_pic_sets, nal_sps_data->short_term_ref_pic_set);
+	}
+	nal_sps_data->long_term_ref_pics_present_flag = (uint8)read_bit(pnal_buffer);
+	if (nal_sps_data->long_term_ref_pics_present_flag) {
+		nal_sps_data->num_long_term_ref_pics_sps =  read_uev(pnal_buffer);
+		for (int i = 0; i < nal_sps_data->num_long_term_ref_pics_sps; i++) {
+			nal_sps_data->lt_ref_pic_poc_lsb_sps[i] = read_bits(pnal_buffer, nal_sps_data->log2_max_pic_order_cnt_lsb_minus4); // u(v)
+			nal_sps_data->used_by_curr_pic_lt_sps_flag[i] = read_bit(pnal_buffer);
+		}
+	}
+	nal_sps_data->sps_temporal_mvp_enabled_flag = read_bit(pnal_buffer);
+	nal_sps_data->strong_intra_smoothing_enabled_flag = read_bit(pnal_buffer);
+	
+	nal_sps_data->vui_parameters_present_flag = (uint8)read_bit(pnal_buffer);
+	if (nal_sps_data->vui_parameters_present_flag) {
+		vui_parameters(pnal_buffer, nal_sps_data->sps_max_sub_layers_minus1, &nal_sps_data->vui_parameters);
+	}
+	nal_sps_data->sps_extension_flag = (uint8)read_bit(pnal_buffer);
+	nal_sps_data->sps_extension_flag = 0; //Decoders conforming to this version of this Specification shall ignore 
+	                                      //(remove from the bitstream and discard) all sps_extension_data_flag syntax elements 
+}
+
+void nal_sps_write(nal_buffer_t* pnal_buffer, nal_sps_data_t *nal_sps_data)
+{
+	memset(pnal_buffer, 0, sizeof(nal_buffer_t));
+
+	write_bits(pnal_buffer, &nal_sps_data->nal_unit_header, 16);
+	write_bits(pnal_buffer, &nal_sps_data->sps_video_parameter_set_id, 4);
+	write_bits(pnal_buffer, &nal_sps_data->sps_max_sub_layers_minus1, 3);
+	write_bit(pnal_buffer, nal_sps_data->sps_temporal_id_nesting_flag);
+
+	write_profile_tier_level(pnal_buffer, nal_sps_data->sps_max_sub_layers_minus1, &nal_sps_data->profile_tier_level);
+	write_uev(pnal_buffer, nal_sps_data->sps_seq_parameter_set_id);
+	/* somewhere lost 3 uev + 1 bit, does not work w/o this */
+	//todo разобраться откуда лишее - скорее всего не правильно в profile_tier_level
+	//	read_uev(pnal_buffer); 
+	//	read_uev(pnal_buffer); 
+	//	read_uev(pnal_buffer); 
+	//	read_bit(pnal_buffer);  
+
+	write_uev(pnal_buffer, nal_sps_data->chroma_format_idc);
+	if (nal_sps_data->chroma_format_idc == 3)
+	{
+		write_bit(pnal_buffer, nal_sps_data->separate_colour_plane_flag);
+	}
+	write_uev(pnal_buffer, nal_sps_data->pic_width_in_luma_samples);
+	write_uev(pnal_buffer, nal_sps_data->pic_height_in_luma_samples);
+	write_bit(pnal_buffer, nal_sps_data->conformance_window_flag);
+	if (nal_sps_data->conformance_window_flag)
+	{
+		write_uev(pnal_buffer, nal_sps_data->conf_win_left_offset);
+		write_uev(pnal_buffer, nal_sps_data->conf_win_right_offset);
+		write_uev(pnal_buffer, nal_sps_data->conf_win_top_offset);
+		write_uev(pnal_buffer, nal_sps_data->conf_win_bottom_offset);
+	}
+	write_uev(pnal_buffer, nal_sps_data->bit_depth_luma_minus8);
+	write_uev(pnal_buffer, nal_sps_data->bit_depth_chroma_minus8);
+	write_uev(pnal_buffer, nal_sps_data->log2_max_pic_order_cnt_lsb_minus4);
+
+	write_bit(pnal_buffer, nal_sps_data->sps_sub_layer_ordering_info_present_flag);
+
+	for (int i = (nal_sps_data->sps_sub_layer_ordering_info_present_flag ? 0 : nal_sps_data->sps_max_sub_layers_minus1);
+	     i <= nal_sps_data->sps_max_sub_layers_minus1; i++)
+	{
+		write_uev(pnal_buffer, nal_sps_data->sps_max_dec_pic_buffering_minus1[i]);
+		write_uev(pnal_buffer, nal_sps_data->sps_max_num_reorder_pics[i]);
+		write_uev(pnal_buffer, nal_sps_data->sps_max_latency_increase_plus1[i]);
+	}
+	write_uev(pnal_buffer, nal_sps_data->log2_min_luma_coding_block_size_minus3);
+	write_uev(pnal_buffer, nal_sps_data->log2_diff_max_min_luma_coding_block_size);
+	write_uev(pnal_buffer, nal_sps_data->log2_min_transform_block_size_minus2);
+	write_uev(pnal_buffer, nal_sps_data->log2_diff_max_min_transform_block_size);
+	write_uev(pnal_buffer, nal_sps_data->max_transform_hierarchy_depth_inter);
+	write_uev(pnal_buffer, nal_sps_data->max_transform_hierarchy_depth_intra);
+	write_bit(pnal_buffer, nal_sps_data->scaling_list_enabled_flag);
+	if (nal_sps_data->scaling_list_enabled_flag)
+	{
+		write_bit(pnal_buffer, nal_sps_data->sps_scaling_list_data_present_flag);
+		if (nal_sps_data->sps_scaling_list_data_present_flag)
+		{
+			write_scaling_list_data(pnal_buffer, &nal_sps_data->scaling_list_data);
+		}
+	}
+	write_bit(pnal_buffer, nal_sps_data->amp_enabled_flag);
+	write_bit(pnal_buffer, nal_sps_data->sample_adaptive_offset_enabled_flag);
+
+	write_bit(pnal_buffer, nal_sps_data->pcm_enabled_flag);
+	if (nal_sps_data->pcm_enabled_flag)
+	{
+		write_bits(pnal_buffer, &nal_sps_data->pcm_sample_bit_depth_luma_minus1, 4);
+		write_bits(pnal_buffer, &nal_sps_data->pcm_sample_bit_depth_chroma_minus1, 4);
+		write_uev(pnal_buffer, nal_sps_data->log2_min_pcm_luma_coding_block_size_minus3);
+		write_uev(pnal_buffer, nal_sps_data->log2_diff_max_min_pcm_luma_coding_block_size);
+		write_bit(pnal_buffer, nal_sps_data->pcm_loop_filter_disable_flag);
+	}
+	write_uev(pnal_buffer, nal_sps_data->num_short_term_ref_pic_sets);
+	for (int i = 0; i < nal_sps_data->num_short_term_ref_pic_sets; i++)
+	{
+		write_short_term_ref_pic_set(pnal_buffer, i, nal_sps_data->num_short_term_ref_pic_sets, nal_sps_data->short_term_ref_pic_set);
+	}
+	write_bit(pnal_buffer, nal_sps_data->long_term_ref_pics_present_flag);
+	if (nal_sps_data->long_term_ref_pics_present_flag)
+	{
+		write_uev(pnal_buffer, nal_sps_data->num_long_term_ref_pics_sps);
+		for (int i = 0; i < nal_sps_data->num_long_term_ref_pics_sps; i++)
+		{
+			write_bits(pnal_buffer, &nal_sps_data->lt_ref_pic_poc_lsb_sps[i], nal_sps_data->log2_max_pic_order_cnt_lsb_minus4); // u(v)
+			write_bit(pnal_buffer, nal_sps_data->used_by_curr_pic_lt_sps_flag[i]);
+		}
+	}
+	write_bit(pnal_buffer, nal_sps_data->sps_temporal_mvp_enabled_flag);
+	write_bit(pnal_buffer, nal_sps_data->strong_intra_smoothing_enabled_flag);
+
+	write_bit(pnal_buffer, nal_sps_data->vui_parameters_present_flag);
+	if (nal_sps_data->vui_parameters_present_flag)
+	{
+		write_vui_parameters(pnal_buffer, nal_sps_data->sps_max_sub_layers_minus1, &nal_sps_data->vui_parameters);
+	}
+	write_bit(pnal_buffer, nal_sps_data->sps_extension_flag);
 }

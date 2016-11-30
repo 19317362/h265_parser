@@ -49,10 +49,12 @@ const char * NAL_UNIT_TYPES[NALUT_MAX+1] = {
 
 typedef void(*nal_unit_initer)();
 typedef void(*nal_unit_parser)(nal_buffer_t *, void *);
+typedef void(*nal_unit_writer)(nal_buffer_t *, void *);
 
 // stubs for ignored NAL units
 void nal_noinit() { }
 void nal_noparse(nal_buffer_t * pnal_buffer, void * dummy) { }
+void nal_nowrite(nal_buffer_t * pnal_buffer, void * dummy) { }
 
 bool need_nal_copy[NALUT_MAX + 1] = {
 	false, false, false, false, false, false, false, false,	// 0
@@ -87,6 +89,19 @@ nal_unit_parser nal_parsers[NALUT_MAX + 1] = {
 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 48 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse		// 56 
+};
+
+nal_unit_writer nal_writers[NALUT_MAX + 1] = {
+	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		//  0 
+	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		//  8 
+	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		// 16 
+	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		// 24 
+
+	nal_nowrite, (nal_unit_writer)nal_sps_write, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,// 32 
+	nal_sei_suffix_parse, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		// 40 
+
+	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		// 48 
+	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite		// 56 
 };
 
 int main(int argc, char ** argv)
@@ -146,6 +161,18 @@ int main(int argc, char ** argv)
 					else if (buffer[i] == 0) {
 						// allow more zeroes, it is ok
 						extra_zero = true;
+					} 
+					else if (buffer[i] == 3)
+					{
+       					//emulation_prevention_three_byte here
+						//restore two missed 0s, copy current byte
+						copy_to_nal_buf(&nal_buffer, 0);
+						copy_to_nal_buf(&nal_buffer, 0);
+						if (extra_zero) {
+							copy_to_nal_buf(&nal_buffer, 0);
+						}
+						state = STATE_EXPECTING_ZERO_0;
+						extra_zero = false;
 					}
 					else {
 						// restore two missed 0s, copy current byte
@@ -175,6 +202,8 @@ int main(int argc, char ** argv)
 						p = (nal_sps_data_t *)malloc(sizeof(nal_sps_data_t));
 						memset(p, 0, sizeof(nal_sps_data_t));
 						nal_parsers[nut](&nal_buffer, p);
+
+
 						free(p);
 					}
 					//fprintf(stdout, "\n");

@@ -84,7 +84,6 @@ int write_bit(nal_buffer_t * pnal_buffer, uint8 b)
 	return 1;
 }
 
-
 int write_bits(nal_buffer_t * pnal_buffer, void * v , int nbits)
 {
 	if (nbits > 0 && nbits <= 8)
@@ -174,6 +173,3 @@ int write_sev(nal_buffer_t * pnal_buffer, sint32 b)
 	}
 	return ret;
 }
-
-
-

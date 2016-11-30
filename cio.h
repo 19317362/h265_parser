@@ -14,5 +14,7 @@ typedef struct _nal_buffer {
 
 void dump_nal_buffer(nal_buffer_t * pnal_buffer);
 void copy_to_nal_buf(nal_buffer_t * pnal_buffer, uint8 c);
+void copy_nal_to_file(nal_buffer_t * pnal_buffer, FILE * f);
+
 
 #endif

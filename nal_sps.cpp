@@ -103,26 +103,16 @@ void print_nal_sps_parse(nal_buffer_t * pnal_buffer) {
 }
 
 void nal_sps_parse(nal_buffer_t * pnal_buffer, nal_sps_data_t * nal_sps_data) {
-	//dump_nal_buffer(pnal_buffer);
-	//pnal_buffer->pos += 2;
-//	uint16 nal_unit_header = (uint16)read_bits(pnal_buffer, 16);
+
 	nal_sps_data->nal_unit_header.forbidden_zero_bit |=  (uint16)read_bits(pnal_buffer, 1);
 	nal_sps_data->nal_unit_header.nal_unit_type |=  (uint16)read_bits(pnal_buffer, 6);
 	nal_sps_data->nal_unit_header.nuh_layer_id |=  (uint16)read_bits(pnal_buffer, 6);
 	nal_sps_data->nal_unit_header.nuh_temporal_id_plus1 |=  (uint16)read_bits(pnal_buffer, 3);
-	//todo попечатать что тут вообще прочиталось, может быть задом наперед
-//	nal_sps_data->nal_unit_header = *(nal_unit_header_t *)&nal_unit_header;
 	nal_sps_data->sps_video_parameter_set_id = (uint8)read_bits(pnal_buffer, 4);
 	nal_sps_data->sps_max_sub_layers_minus1 = (uint8)read_bits(pnal_buffer, 3);
 	nal_sps_data->sps_temporal_id_nesting_flag = (uint8)read_bit(pnal_buffer);
 	profile_tier_level(pnal_buffer, nal_sps_data->sps_max_sub_layers_minus1, &nal_sps_data->profile_tier_level);
 	nal_sps_data->sps_seq_parameter_set_id = read_uev(pnal_buffer);
-	/* somewhere lost 3 uev + 1 bit, does not work w/o this */
-	//todo разобраться откуда лишее - скорее всего не правильно в profile_tier_level
-//	read_uev(pnal_buffer); 
-//	read_uev(pnal_buffer); 
-//	read_uev(pnal_buffer); 
-//	read_bit(pnal_buffer);  
 
 	nal_sps_data->chroma_format_idc = read_uev(pnal_buffer);
 	if (nal_sps_data->chroma_format_idc == 3) {
@@ -209,12 +199,6 @@ void nal_sps_write(nal_buffer_t* pnal_buffer, nal_sps_data_t *nal_sps_data)
 
 	write_profile_tier_level(pnal_buffer, nal_sps_data->sps_max_sub_layers_minus1, &nal_sps_data->profile_tier_level);
 	write_uev(pnal_buffer, nal_sps_data->sps_seq_parameter_set_id);
-	/* somewhere lost 3 uev + 1 bit, does not work w/o this */
-	//todo разобраться откуда лишее - скорее всего не правильно в profile_tier_level
-	//	read_uev(pnal_buffer); 
-	//	read_uev(pnal_buffer); 
-	//	read_uev(pnal_buffer); 
-	//	read_bit(pnal_buffer);  
 
 	write_uev(pnal_buffer, nal_sps_data->chroma_format_idc);
 	if (nal_sps_data->chroma_format_idc == 3)
@@ -296,3 +280,4 @@ void nal_sps_write(nal_buffer_t* pnal_buffer, nal_sps_data_t *nal_sps_data)
 	}
 	write_bit(pnal_buffer, nal_sps_data->sps_extension_flag);
 }
+

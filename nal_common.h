@@ -267,10 +267,10 @@ typedef struct _vui_parameters_data_t {
 } vui_parameters_data_t;
 
 typedef struct _nal_unit_header_t {
-	uint16 forbidden_zero_bit : 1; // f(1)
-	uint16 nal_unit_type : 6; // u(6)
-	uint16 nuh_layer_id	: 6; // u(6)
 	uint16 nuh_temporal_id_plus1 : 3; // u(3)
+	uint16 nuh_layer_id : 6; // u(6)
+	uint16 nal_unit_type : 6; // u(6)
+	uint16 forbidden_zero_bit : 1; // f(1)
 } nal_unit_header_t;
 
 void profile_tier_level(nal_buffer_t * pnal_buffer, int maxNumSubLayersMinus1, profile_tier_level_data_t *profile_tier_level_data);

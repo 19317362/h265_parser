@@ -73,14 +73,15 @@ int write_bit(nal_buffer_t * pnal_buffer, uint8 b)
 		pnal_buffer->bitpos = 8;
 	}
 
-	if (pnal_buffer->pos >= pnal_buffer->posmax) {
-		fprintf(stdout, "!!! nal buffer overrun !!!\n");
-	}
-	
+//	if (pnal_buffer->pos >= pnal_buffer->posmax) {
+//		fprintf(stdout, "!!! nal buffer overrun !!!\n");
+//	}
+	uint8 ret = (b & 1);
 	pnal_buffer->data[pnal_buffer->pos] |= (b & 1) << (pnal_buffer->bitpos -1);
 	pnal_buffer->bitpos--;
+
 	//fprintf(stdout, "\t\t%02x[%d] = %d\n", nal_buffer.data[nal_buffer.pos], nal_buffer.bitpos, ret);
-	//fprintf(stdout, "%d", ret > 0 ? 1 : 0);
+	fprintf(stdout, "%d", ret > 0 ? 1 : 0);
 	return 1;
 }
 
@@ -89,7 +90,7 @@ int write_bits(nal_buffer_t * pnal_buffer, void * v , int nbits)
 	if (nbits > 0 && nbits <= 8)
 	{
 		uint8 b = 0;
-		for (int i = nbits; i > 0; i++)
+		for (int i = nbits; i > 0; i--)
 		{
 			b = (*((uint8 *)v) >> (i - 1)) & 1;
 			write_bit(pnal_buffer, b);
@@ -99,7 +100,7 @@ int write_bits(nal_buffer_t * pnal_buffer, void * v , int nbits)
 	if (nbits <= 16)
 	{
 		uint16 b = 0;
-		for (int i = nbits; i > 0; i++)
+		for (int i = nbits; i > 0; i--)
 		{
 			b = (*((uint16 *)v) >> (i - 1)) & 1;
 			write_bit(pnal_buffer, b);
@@ -109,7 +110,7 @@ int write_bits(nal_buffer_t * pnal_buffer, void * v , int nbits)
 	if (nbits <= 32)
 	{
 		uint32 b = 0;
-		for (int i = nbits; i > 0; i++)
+		for (int i = nbits; i > 0; i--)
 		{
 			b = (*((uint32 *)v) >> (i - 1)) & 1;
 			write_bit(pnal_buffer, b);
@@ -119,7 +120,7 @@ int write_bits(nal_buffer_t * pnal_buffer, void * v , int nbits)
 	if (nbits <= 64)
 	{
 		uint64 b = 0;
-		for (int i = nbits; i > 0; i++)
+		for (int i = nbits; i > 0; i--)
 		{
 			b = (*((uint64 *)v) >> (i - 1)) & 1;
 			write_bit(pnal_buffer, b);
@@ -132,7 +133,13 @@ int write_bits(nal_buffer_t * pnal_buffer, void * v , int nbits)
 
 int write_uev(nal_buffer_t * pnal_buffer, uint32 num) //write exp-golomb code
 {
-	uint32 absV = num;
+	fprintf(stdout, "[");
+	if (num == 0xFFFFFFFF)
+	{
+		fprintf(stdout, "!!! can't write more then 32bit uev!!!\n");
+		return 0;
+	}
+/*	uint32 absV = num;
 	uint8 stopLoop = 0;
 	int k = 0;
 	int i = 0;
@@ -156,8 +163,39 @@ int write_uev(nal_buffer_t * pnal_buffer, uint32 num) //write exp-golomb code
 
 			stopLoop = 1;
 		}
-	while (!stopLoop);
-	return i;
+	while (!stopLoop);*/
+	int pos = 0;
+	uint32 x = num + 1;
+	for (int i = 32; i > 0; i--)
+	{
+		if ((x >> i - 1) & 1)
+		{
+			break;
+		}
+		pos++;
+	}
+
+	int leading_zeros = 32 - pos - 1;
+
+	uint32 zero = 0;
+
+	if (leading_zeros == 0)
+	{
+		write_bit(pnal_buffer, 1);
+
+	} else if (leading_zeros == 1)
+	{
+		write_bit(pnal_buffer, 0);
+		write_bits(pnal_buffer, &x, leading_zeros + 1);
+	} else if (leading_zeros > 1)
+	{
+		write_bits(pnal_buffer, &zero, leading_zeros);
+		write_bits(pnal_buffer, &x, leading_zeros + 1);
+	}
+
+
+	fprintf(stdout, "]");
+	return 32 - pos + 32 - pos -1;
 }
 
 int write_sev(nal_buffer_t * pnal_buffer, sint32 b)

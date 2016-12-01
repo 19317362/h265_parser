@@ -118,6 +118,12 @@ int main(int argc, char ** argv)
 		return 2;
 	}
 
+	FILE * outf = fopen(argv[2], "wb");
+	if (!outf) {
+		fprintf(stderr, "cannot open file %s\n", argv[2]);
+		return 2;
+	}
+
 	uint8 buffer[READ_BUF_LEN];
 	long long byte_counter = 0;
 	int state = STATE_EXPECTING_ZERO_0;
@@ -203,6 +209,15 @@ int main(int argc, char ** argv)
 						memset(p, 0, sizeof(nal_sps_data_t));
 						nal_parsers[nut](&nal_buffer, p);
 
+						nal_buffer_t buffer_to_write;
+						buffer_to_write.pos = -1;
+						fprintf(stdout, "\nwrites:\n");
+						nal_writers[nut](&buffer_to_write, p);
+						buffer_to_write.posmax = buffer_to_write.pos;
+						buffer_to_write.pos = 0;
+						buffer_to_write.bitpos = 8;
+
+						write_nal_data_to_file(&buffer_to_write, outf);
 
 						free(p);
 					}
@@ -228,4 +243,5 @@ int main(int argc, char ** argv)
 	}
 
 	fclose(inf);
+	fclose(outf);
 }

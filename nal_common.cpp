@@ -717,7 +717,7 @@ void write_profile_tier_level(nal_buffer_t* pnal_buffer, int maxNumSubLayersMinu
 	}
 	else
 	{
-		profile_tier_level_data->general_reserved_zero_43bits = (uint64)read_bits64(pnal_buffer, 43);//	u(43)
+		write_bits(pnal_buffer, &profile_tier_level_data->general_reserved_zero_43bits, 43);//	u(43)
 		if ((profile_tier_level_data->general_profile_idc >= 1 && profile_tier_level_data->general_profile_idc <= 5) ||
 			profile_tier_level_data->general_profile_compatibility_flag[1] || profile_tier_level_data->general_profile_compatibility_flag[2] ||
 			profile_tier_level_data->general_profile_compatibility_flag[3] || profile_tier_level_data->general_profile_compatibility_flag[4] ||

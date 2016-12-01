@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include "cio.h"
 #include <cstring>
 
@@ -27,22 +25,18 @@ void copy_to_nal_buf(nal_buffer_t * pnal_buffer, uint8 c) {
 //write nal_buffer_t to file as is
 void copy_nal_to_file(nal_buffer_t* pnal_buffer, FILE* f)
 {
-    uint8 buf[BUFFER_MAX] = { 0 };
-	int i = 0;
-	for(i = 0; i < pnal_buffer->posmax % BUFFER_MAX; i++)
-	{
-		memcpy(buf, pnal_buffer->data + i*BUFFER_MAX, BUFFER_MAX);
-		fwrite(buf, BUFFER_MAX, 1, f);
-		memset(buf, 0, BUFFER_MAX);
-	}
-	fwrite(pnal_buffer->data + i*BUFFER_MAX, pnal_buffer->posmax - i*BUFFER_MAX, 1, f);
-
+	fwrite(pnal_buffer->data, pnal_buffer->posmax, 1, f);
 }
 
 //write nal_buffer data with encapsulation of an SODB 
+//TODO не корректно пишетс€ начало (не хватае 00 перед 40) не корректно вставл€ютс€ 03 и в конце в оригинале стоит 08 а не 03
+
 void write_nal_data_to_file(nal_buffer_t* pnal_buffer, FILE* f)
 {
-	uint8 pattern_SODB = 0x03;
+	const uint8 SODB_CODE[1] = { 0x03 };
+	const uint8 START_CODE[3] = { 0x00, 0x00, 0x01 };
+
+	fwrite(START_CODE, sizeof(START_CODE), 1, f);
 
 	for (int i = 0; i < pnal_buffer->posmax; i++)
 	{
@@ -57,18 +51,18 @@ void write_nal_data_to_file(nal_buffer_t* pnal_buffer, FILE* f)
 		{
 			fwrite(&pnal_buffer->data[i], sizeof(uint8), 1, f);
 			fwrite(&pnal_buffer->data[i + 1], sizeof(uint8), 1, f);
-			fwrite(&pattern_SODB, sizeof(uint8), 1, f);
+			fwrite(SODB_CODE, sizeof(SODB_CODE), 1, f);
 			fwrite(&pnal_buffer->data[i + 2], sizeof(uint8), 1, f);
-			i+=2;
-		} else
-		{
-		fwrite(&pnal_buffer->data[i], sizeof(uint8), 1, f);
+			i += 2;
 		}
-
-		if (pnal_buffer->data[pnal_buffer->posmax] == 0)
+		else
 		{
-			fwrite(&pattern_SODB, sizeof(uint8), 1, f);
+			fwrite(&pnal_buffer->data[i], sizeof(uint8), 1, f);
 		}
+	}
+	if (pnal_buffer->data[pnal_buffer->posmax] == 0)
+	{
+		fwrite(SODB_CODE, sizeof(SODB_CODE), 1, f);
 	}
 }
 

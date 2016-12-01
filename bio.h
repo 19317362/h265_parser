@@ -13,7 +13,6 @@ sint32 read_sev(nal_buffer_t * pnal_buffer);
 
 int write_bit(nal_buffer_t * pnal_buffer, uint8 b);
 int write_bits(nal_buffer_t * pnal_buffer, void * b, int nbits);
-int write_bits64(nal_buffer_t * pnal_buffer, uint64 b, int nbits);
 int write_uev(nal_buffer_t * pnal_buffer, uint32 b);
 int write_sev(nal_buffer_t * pnal_buffer, sint32 b);
 

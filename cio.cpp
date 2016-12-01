@@ -29,16 +29,17 @@ void copy_nal_to_file(nal_buffer_t* pnal_buffer, FILE* f)
 }
 
 //write nal_buffer data with encapsulation of an SODB 
-//TODO не корректно пишетс€ начало (не хватае 00 перед 40) не корректно вставл€ютс€ 03 и в конце в оригинале стоит 08 а не 03
 
 void write_nal_data_to_file(nal_buffer_t* pnal_buffer, FILE* f)
 {
+	printf("Write to file: \n");
 	const uint8 SODB_CODE[1] = { 0x03 };
 	const uint8 START_CODE[3] = { 0x00, 0x00, 0x01 };
+	const uint8 ZERO_BITS[1] = { 0x00 };
 
 	fwrite(START_CODE, sizeof(START_CODE), 1, f);
-
-	for (int i = 0; i < pnal_buffer->posmax; i++)
+	printf("%02X %02X %02X ", START_CODE[0],START_CODE[1], START_CODE[2]);
+	for (int i = 0; i <= pnal_buffer->posmax; i++)
 	{
 		if (i + 2 < pnal_buffer->posmax &&
 			(
@@ -50,19 +51,27 @@ void write_nal_data_to_file(nal_buffer_t* pnal_buffer, FILE* f)
 		)
 		{
 			fwrite(&pnal_buffer->data[i], sizeof(uint8), 1, f);
+			printf("%02X ", pnal_buffer->data[i]);
 			fwrite(&pnal_buffer->data[i + 1], sizeof(uint8), 1, f);
+			printf("%02X ", pnal_buffer->data[i + 1]);
 			fwrite(SODB_CODE, sizeof(SODB_CODE), 1, f);
-			fwrite(&pnal_buffer->data[i + 2], sizeof(uint8), 1, f);
-			i += 2;
+			printf("%02X ", SODB_CODE[0]);
+			i += 1;
 		}
 		else
 		{
 			fwrite(&pnal_buffer->data[i], sizeof(uint8), 1, f);
+			printf("%02X ", pnal_buffer->data[i]);
 		}
 	}
+
 	if (pnal_buffer->data[pnal_buffer->posmax] == 0)
 	{
 		fwrite(SODB_CODE, sizeof(SODB_CODE), 1, f);
+		printf("%02X ", SODB_CODE[0]);
 	}
+    fwrite(ZERO_BITS, sizeof(ZERO_BITS), 1, f);
+	printf("%02X ", ZERO_BITS[0]);
+
 }
 

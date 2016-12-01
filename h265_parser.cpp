@@ -210,6 +210,7 @@ int main(int argc, char ** argv)
 						nal_parsers[nut](&nal_buffer, p);
 
 						nal_buffer_t buffer_to_write;
+						memset(&buffer_to_write, 0, sizeof(nal_buffer_t));
 						buffer_to_write.pos = -1;
 						fprintf(stdout, "\nwrites:\n");
 						nal_writers[nut](&buffer_to_write, p);

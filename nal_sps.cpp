@@ -190,8 +190,6 @@ void nal_sps_parse(nal_buffer_t * pnal_buffer, nal_sps_data_t * nal_sps_data) {
 
 void nal_sps_write(nal_buffer_t* pnal_buffer, nal_sps_data_t *nal_sps_data)
 {
-	memset(pnal_buffer, 0, sizeof(nal_buffer_t));
-
 	write_bits(pnal_buffer, &nal_sps_data->nal_unit_header, 16);
 	write_bits(pnal_buffer, &nal_sps_data->sps_video_parameter_set_id, 4);
 	write_bits(pnal_buffer, &nal_sps_data->sps_max_sub_layers_minus1, 3);
@@ -279,5 +277,22 @@ void nal_sps_write(nal_buffer_t* pnal_buffer, nal_sps_data_t *nal_sps_data)
 		write_vui_parameters(pnal_buffer, nal_sps_data->sps_max_sub_layers_minus1, &nal_sps_data->vui_parameters);
 	}
 	write_bit(pnal_buffer, nal_sps_data->sps_extension_flag);
+
+//	7.3.2.11	RBSP trailing bits syntax
+//
+//		rbsp_trailing_bits( ) {	Descriptor
+//			rbsp_stop_one_bit  /* equal to 1 */	f(1)
+//			while( !byte_aligned( ) )	
+//				rbsp_alignment_zero_bit  /* equal to 0 */	f(1)
+//		}		
+
+	if (pnal_buffer->bitpos != 0)
+	{
+		write_bit(pnal_buffer, 1);
+	}
+	while (pnal_buffer->bitpos != 0)
+	{
+		write_bit(pnal_buffer, 0);
+	}
 }
 

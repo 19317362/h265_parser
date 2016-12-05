@@ -6,7 +6,7 @@
 void nal_pps_init() {
 }
 
-void nal_pps_parse(nal_buffer_t * pnal_buffer, void * dummy) {
+void nal_pps_parse(nal_buffer_t * pnal_buffer) {
 	dump_nal_buffer(pnal_buffer);
 	pnal_buffer->pos += 2;
 	fprintf(stdout, "\tpps_pic_parameter_set_id=%d\n", read_uev(pnal_buffer));

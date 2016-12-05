@@ -4,6 +4,6 @@
 #include "cio.h"
 
 void nal_aud_init();
-void nal_aud_parse(nal_buffer_t * pnal_buffer, void * dummy);
+void nal_aud_parse(nal_buffer_t * pnal_buffer);
 
 #endif

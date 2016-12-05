@@ -20,6 +20,7 @@
 #define STATE_EXPECTING_ZERO_1 1
 #define STATE_EXPECTING_ONE 2
 #define STATE_EXPECTING_NAL_UNIT_TYPE 3
+#define STATE_EXPECTING_THREE 4
 
 // total number of NUT (6 bit)
 #define NALUT_MAX 63
@@ -47,24 +48,31 @@ const char * NAL_UNIT_TYPES[NALUT_MAX+1] = {
 	"UNSPEC56",		"UNSPEC57",		"UNSPEC58",		"UNSPEC59",		"UNSPEC60",		"UNSPEC61",		"UNSPEC62",		"UNSPEC63"			// 56
 };
 
+FILE * infile;
+FILE * outfile;
+long long byteWriteCounter;
+
 typedef void(*nal_unit_initer)();
-typedef void(*nal_unit_parser)(nal_buffer_t *, void *);
-typedef void(*nal_unit_writer)(nal_buffer_t *, void *);
+typedef void(*nal_unit_parser)(nal_buffer_t *);
+typedef void(*nal_unit_writer)(nal_buffer_t *);
 
 // stubs for ignored NAL units
 void nal_noinit() { }
-void nal_noparse(nal_buffer_t * pnal_buffer, void * dummy) { }
-void nal_nowrite(nal_buffer_t * pnal_buffer, void * dummy) { }
+
+void nal_noparse(nal_buffer_t * pnal_buffer)
+{
+	copy_nal_to_file(pnal_buffer, outfile);
+}
 
 bool need_nal_copy[NALUT_MAX + 1] = {
-	false, false, false, false, false, false, false, false,	// 0
-	false, false, false, false, false, false, false, false,	// 8
-	false, false, false, false, false, false, false, false,	// 16
-	false, false, false, false, false, false, false, false, // 24
+	true, true, true, true, false, false, false, true,	// 0
+	true, true, true, true, false, false, false, true,	// 8
+	true, true, true, true, false, false, false, true,	// 16
+	true, true, true, true, false, false, false, true, // 24
 	true, true, true, true, false, false, false, true,		// 32
-	true, false, false, false, false, false, false, false,	// 40
-	false, false, false, false, false, false, false, false,	// 48
-	false, false, false, false, false, false, false, false	// 56
+	true, true, true, true, false, false, false, true,	// 40
+	true, true, true, true, false, false, false, true,	// 48
+	true, true, true, true, false, false, false, true,	// 56
 };
 
 nal_unit_initer nal_initers[NALUT_MAX + 1] = {
@@ -84,25 +92,14 @@ nal_unit_parser nal_parsers[NALUT_MAX + 1] = {
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 16 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 24 
 
-	nal_vps_parse, (nal_unit_parser)nal_sps_parse, nal_pps_parse, nal_aud_parse, nal_noparse, nal_noparse, nal_noparse, nal_sei_prefix_parse,// 32 
-	nal_sei_suffix_parse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 40 
+	nal_noparse, (nal_unit_parser)nal_sps_parse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,// 32 
+	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 40 
 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 48 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse		// 56 
 };
 
-nal_unit_writer nal_writers[NALUT_MAX + 1] = {
-	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		//  0 
-	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		//  8 
-	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		// 16 
-	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		// 24 
 
-	nal_nowrite, (nal_unit_writer)nal_sps_write, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,// 32 
-	nal_sei_suffix_parse, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		// 40 
-
-	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite,		// 48 
-	nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite, nal_nowrite		// 56 
-};
 
 int main(int argc, char ** argv)
 {
@@ -112,14 +109,14 @@ int main(int argc, char ** argv)
 		return 1;
 	}
 
-	FILE * inf = fopen(argv[1], "rb");
-	if (!inf) {
+	FILE * infile = fopen(argv[1], "rb");
+	if (!infile) {
 		fprintf(stderr, "cannot open file %s\n", argv[1]);
 		return 2;
 	}
 
-	FILE * outf = fopen(argv[2], "wb");
-	if (!outf) {
+	outfile = fopen(argv[2], "wb");
+	if (!outfile) {
 		fprintf(stderr, "cannot open file %s\n", argv[2]);
 		return 2;
 	}
@@ -130,119 +127,109 @@ int main(int argc, char ** argv)
 	bool extra_zero = false;
 	nal_buffer_t nal_buffer = { 0 };
 	uint8 nut = 0;
-	uint64 filePos = 0;
+	byteWriteCounter = 0;
 
-	while (!feof(inf)) {
-		size_t bytes_read = fread(buffer, 1, READ_BUF_LEN, inf);
+	while (!feof(infile)) {
+		size_t bytes_read = fread(buffer, 1, READ_BUF_LEN, infile);
 
-		for (int i = 0; i < bytes_read; i++) {
-			filePos++;
-			switch (state) {
-				case STATE_EXPECTING_ZERO_0:
-					if (buffer[i] == 0) {
-						state = STATE_EXPECTING_ZERO_1;
-					}
-					else if (need_nal_copy[nut] && nal_buffer.pos < NAL_BUFFER_MAX) {
-						copy_to_nal_buf(&nal_buffer, buffer[i]);
-					}
-					break;
+		for (int i = 0; i < bytes_read; i++)
+		{
+			switch (state)
+			{
+			case STATE_EXPECTING_ZERO_0:
+				if (buffer[i] == 0)
+				{
+					state = STATE_EXPECTING_ZERO_1;
+				}
+				else if (need_nal_copy[nut] && nal_buffer.pos < NAL_BUFFER_MAX)
+				{
+					copy_to_nal_buf(&nal_buffer, buffer[i]);
+				}
+				break;
 
-				case STATE_EXPECTING_ZERO_1:
-					if (buffer[i] == 0) {
-						state = STATE_EXPECTING_ONE;
-					}
-					else {
-						// restore missed 0, copy current byte
-						copy_to_nal_buf(&nal_buffer, 0);
-						copy_to_nal_buf(&nal_buffer, buffer[i]);
-						state = STATE_EXPECTING_ZERO_0;
-						extra_zero = false;
-					}
-					break;
-
-				case STATE_EXPECTING_ONE:	
-					if (buffer[i] == 1) {
-						state = STATE_EXPECTING_NAL_UNIT_TYPE;
-					}
-					else if (buffer[i] == 0) {
-						// allow more zeroes, it is ok
-						extra_zero = true;
-					} 
-					else if (buffer[i] == 3)
+			case STATE_EXPECTING_ZERO_1:
+				if (buffer[i] == 0)
+				{
+					state = STATE_EXPECTING_ONE;
+				}
+				else
+				{
+					// restore missed 0, copy current byte
+					if (need_nal_copy[nut] && nal_buffer.pos < NAL_BUFFER_MAX)
 					{
-       					//emulation_prevention_three_byte here
-						//restore two missed 0s, copy current byte
 						copy_to_nal_buf(&nal_buffer, 0);
-						copy_to_nal_buf(&nal_buffer, 0);
-						if (extra_zero) {
-							copy_to_nal_buf(&nal_buffer, 0);
-						}
-						state = STATE_EXPECTING_ZERO_0;
-						extra_zero = false;
 					}
-					else {
-						// restore two missed 0s, copy current byte
-						copy_to_nal_buf(&nal_buffer, 0);
-						copy_to_nal_buf(&nal_buffer, 0);
-						if (extra_zero) {
-							copy_to_nal_buf(&nal_buffer, 0);
-						}
-						copy_to_nal_buf(&nal_buffer, buffer[i]);
-						state = STATE_EXPECTING_ZERO_0;
-						extra_zero = false;
-					}
-					break;
-
-				case STATE_EXPECTING_NAL_UNIT_TYPE:
-					// parse previous NAL unit
-					nal_buffer.posmax = nal_buffer.pos;
-					nal_buffer.pos = 0;
-					nal_buffer.bitpos = 8;
-					if (nut != SPS_NUT)
+					if (need_nal_copy[nut] && nal_buffer.pos < NAL_BUFFER_MAX)
 					{
-						nal_parsers[nut](&nal_buffer, NULL);
-					}
-					else
-					{
-						nal_sps_data_t * p;
-						p = (nal_sps_data_t *)malloc(sizeof(nal_sps_data_t));
-						memset(p, 0, sizeof(nal_sps_data_t));
-						nal_parsers[nut](&nal_buffer, p);
-
-						nal_buffer_t buffer_to_write;
-						memset(&buffer_to_write, 0, sizeof(nal_buffer_t));
-						buffer_to_write.pos = -1;
-						fprintf(stdout, "\nwrites:\n");
-						nal_writers[nut](&buffer_to_write, p);
-						buffer_to_write.posmax = buffer_to_write.pos;
-						buffer_to_write.pos = 0;
-						buffer_to_write.bitpos = 8;
-
-						write_nal_data_to_file(&buffer_to_write, outf);
-
-						free(p);
-					}
-					//fprintf(stdout, "\n");
-
-					nut = (buffer[i] & 0x7e) >> 1;
-					fprintf(stdout, "\n%08llx: nal unit: %02x -> %d, %s\n", byte_counter, buffer[i], nut, NAL_UNIT_TYPES[nut]);
-
-					// reset buffer for the next NAL unit
-					nal_buffer.pos = 0;
-					nal_buffer.bitpos = 8;
-					if (need_nal_copy[nut] && nal_buffer.pos < NAL_BUFFER_MAX) {
-						nal_initers[nut]();
 						copy_to_nal_buf(&nal_buffer, buffer[i]);
 					}
-
 					state = STATE_EXPECTING_ZERO_0;
 					extra_zero = false;
-					break;
+				}
+				break;
+
+			case STATE_EXPECTING_ONE:
+				if (buffer[i] == 1)
+				{
+					state = STATE_EXPECTING_NAL_UNIT_TYPE;
+				}
+				else if (buffer[i] == 0)
+				{
+					// allow more zeroes, it is ok
+					extra_zero = true;
+				}
+				else
+				{
+					// restore two missed 0s, copy current byte
+					if (need_nal_copy[nut] && nal_buffer.pos < NAL_BUFFER_MAX)
+					{
+						copy_to_nal_buf(&nal_buffer, 0);
+					}
+					if (need_nal_copy[nut] && nal_buffer.pos < NAL_BUFFER_MAX)
+					{
+						copy_to_nal_buf(&nal_buffer, 0);
+					}
+					if (extra_zero)
+					{
+						if (need_nal_copy[nut] && nal_buffer.pos < NAL_BUFFER_MAX)
+						{
+							copy_to_nal_buf(&nal_buffer, 0);
+						}
+					}
+					if (need_nal_copy[nut] && nal_buffer.pos < NAL_BUFFER_MAX)
+					{
+						copy_to_nal_buf(&nal_buffer, buffer[i]);
+					}
+					state = STATE_EXPECTING_ZERO_0;
+					extra_zero = false;
+				}
+				break;
+
+			case STATE_EXPECTING_NAL_UNIT_TYPE:
+				// parse previous NAL unit
+				nal_buffer.posmax = nal_buffer.pos;
+				nal_buffer.pos = 0;
+				nal_buffer.bitpos = 8;
+				nal_parsers[nut](&nal_buffer);
+				nut = (buffer[i] & 0x7e) >> 1;
+				fprintf(stdout, "\n%08llx: nal unit: %02x -> %d, %s\n", byte_counter, buffer[i], nut, NAL_UNIT_TYPES[nut]);
+				// reset buffer for the next NAL unit
+				nal_buffer.pos = 0;
+				nal_buffer.bitpos = 8;
+				if (need_nal_copy[nut] && nal_buffer.pos < NAL_BUFFER_MAX)
+				{
+					nal_initers[nut]();
+					copy_to_nal_buf(&nal_buffer, buffer[i]);
+				}
+				printf("Readead minus writed: %lld\n", byte_counter - byteWriteCounter);
+				state = STATE_EXPECTING_ZERO_0;
+				extra_zero = false;
+				break;
 			}
 			byte_counter++;
 		}
 	}
-
-	fclose(inf);
-	fclose(outf);
+	printf("Total writed %d bytes\n", byteWriteCounter);
+	fclose(infile);
+	fclose(outfile);
 }

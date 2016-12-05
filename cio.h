@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include "types.h"
 
-#define NAL_BUFFER_MAX 8192
+#define NAL_BUFFER_MAX 262136 
+//8192
 
 typedef struct _nal_buffer {
 	int pos;

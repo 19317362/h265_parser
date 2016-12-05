@@ -6,9 +6,87 @@
 #include "nal_common.h"
 #include "nal_sps.h"
 #include <cstring>
+#include <cstdlib>
+
+// NAL unit parser states 00 -> 00 -> [00] -> 01 -> NUT
+#define STATE_EXPECTING_ZERO_0 0
+#define STATE_EXPECTING_ZERO_1 1
+#define STATE_EXPECTING_THREE 2
+
+extern FILE * outfile;
 
 void nal_sps_init() {
 
+}
+
+/** 
+ * Removes 0x03 byte from stream
+ */
+void decode_nul_rbsp(nal_buffer_t * buffin, nal_buffer_t * buffout, int size)
+{
+	int state = STATE_EXPECTING_ZERO_0;
+	bool extra_zero = false;
+	for (int i = 0; i < size; i++)
+	{
+		switch (state)
+		{
+		case STATE_EXPECTING_ZERO_0:
+			if (buffin->data[i] == 0)
+			{
+				state = STATE_EXPECTING_ZERO_1;
+			}
+			else if (buffin->pos < NAL_BUFFER_MAX)
+			{
+				copy_to_nal_buf(buffout, buffin->data[i]);
+			}
+			break;
+
+		case STATE_EXPECTING_ZERO_1:
+			if (buffin->data[i] == 0)
+			{
+				state = STATE_EXPECTING_THREE;
+			}
+			else
+			{
+				// restore missed 0, copy current byte
+				copy_to_nal_buf(buffout, 0);
+				copy_to_nal_buf(buffout, buffin->data[i]);
+				state = STATE_EXPECTING_ZERO_0;
+				extra_zero = false;
+			}
+			break;
+
+			case STATE_EXPECTING_THREE:	
+					if (buffin->data[i]  == 3) {
+						state = STATE_EXPECTING_ZERO_0;
+						//emulation_prevention_three_byte here
+						//restore two missed 0s, copy current byte
+						copy_to_nal_buf(buffout, 0);
+						copy_to_nal_buf(buffout, 0);
+						if (extra_zero) {
+							copy_to_nal_buf(buffout, 0);
+						}
+						state = STATE_EXPECTING_ZERO_0;
+						extra_zero = false;
+					}
+					else if (buffin->data[i] == 0) {
+						// allow more zeroes, it is ok
+						extra_zero = true;
+					} else {
+						// restore two missed 0s, copy current byte
+						copy_to_nal_buf(buffout, 0);
+						copy_to_nal_buf(buffout, 0);
+						if (extra_zero) {
+							copy_to_nal_buf(buffout, 0);
+						}
+						copy_to_nal_buf(buffout, buffin->data[i] );
+						state = STATE_EXPECTING_ZERO_0;
+						extra_zero = false;
+					}
+					break;
+		}
+	}
+	
 }
 
 void print_nal_sps_parse(nal_buffer_t * pnal_buffer) {
@@ -102,8 +180,44 @@ void print_nal_sps_parse(nal_buffer_t * pnal_buffer) {
 	fprintf(stdout, "\tsps_extension_flag=%d\n", read_bit(pnal_buffer));
 }
 
-void nal_sps_parse(nal_buffer_t * pnal_buffer, nal_sps_data_t * nal_sps_data) {
+/**
+ * Process data from pnal_buffer
+ */
+void nal_sps_parse(nal_buffer_t * pnal_buffer) {
+	//Decode SPS NUL rbsp data (remove 0x03 stuff)
+	nal_buffer_t nal_buffer_decoded = {0};
+	decode_nul_rbsp(pnal_buffer, &nal_buffer_decoded, pnal_buffer->posmax);
+	nal_buffer_decoded.posmax = nal_buffer_decoded.pos;
+	nal_buffer_decoded.pos = 0;
+	nal_buffer_decoded.bitpos = 8;
 
+	//parse SPS NUL to structure
+	nal_sps_data_t* parset_sps_data;
+	parset_sps_data = (nal_sps_data_t *)malloc(sizeof(nal_sps_data_t));
+	memset(parset_sps_data, 0, sizeof(nal_sps_data_t));
+	nal_sps_parse_data(&nal_buffer_decoded, parset_sps_data);
+	
+	//change data
+
+	//write data to byte buffer
+	nal_buffer_t buffer_to_write;
+	memset(&buffer_to_write, 0, sizeof(nal_buffer_t));
+	buffer_to_write.pos = -1;
+	nal_sps_write(&buffer_to_write, parset_sps_data);
+	buffer_to_write.posmax = buffer_to_write.pos;
+	buffer_to_write.pos = 0;
+	buffer_to_write.bitpos = 8;
+
+	//write byte buffer to output 
+	write_nal_data_to_file(&buffer_to_write, outfile);
+	free(parset_sps_data);
+}
+
+/**
+ * Parses data as specified in HEVC spec
+ */
+void nal_sps_parse_data(nal_buffer_t * pnal_buffer, nal_sps_data_t * nal_sps_data) {
+	
 	nal_sps_data->nal_unit_header.forbidden_zero_bit |=  (uint16)read_bits(pnal_buffer, 1);
 	nal_sps_data->nal_unit_header.nal_unit_type |=  (uint16)read_bits(pnal_buffer, 6);
 	nal_sps_data->nal_unit_header.nuh_layer_id |=  (uint16)read_bits(pnal_buffer, 6);
@@ -188,6 +302,9 @@ void nal_sps_parse(nal_buffer_t * pnal_buffer, nal_sps_data_t * nal_sps_data) {
 	                                      //(remove from the bitstream and discard) all sps_extension_data_flag syntax elements 
 }
 
+/**
+ * Writes SPS struct data to byte stream buffer
+ */
 void nal_sps_write(nal_buffer_t* pnal_buffer, nal_sps_data_t *nal_sps_data)
 {
 	write_bits(pnal_buffer, &nal_sps_data->nal_unit_header, 16);

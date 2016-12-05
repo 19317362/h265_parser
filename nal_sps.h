@@ -75,7 +75,8 @@ typedef struct _nal_sps_data_t
 } nal_sps_data_t;
 
 void nal_sps_init();
-void nal_sps_parse(nal_buffer_t* pnal_buffer, nal_sps_data_t *nal_sps_data);
+void nal_sps_parse(nal_buffer_t* pnal_buffer);
+void nal_sps_parse_data(nal_buffer_t* pnal_buffer, nal_sps_data_t *nal_sps_data);
 void nal_sps_write(nal_buffer_t* pnal_buffer, nal_sps_data_t *nal_sps_data);
 void print_nal_sps_parse(nal_buffer_t * pnal_buffer);
 

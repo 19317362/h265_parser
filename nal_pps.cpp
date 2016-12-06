@@ -3,10 +3,28 @@
 #include "bio.h"
 #include "nal_common.h"
 
+extern FILE * outfile;
+
+const uint8 SEI_MSG[34] = {
+0x00, 0x00, 0x00, 0x01, 0x4E, 0x01, 0x89, 0x18, //0
+0x33, 0xC2, 0x86, 0xC4, 0x1D, 0x4C, 0x0B, 0xB8, //8
+0x84, 0xD0, 0x3E, 0x80, 0x3D, 0x13, 0x40, 0x42, //15
+0x00, 0x98, 0x96, 0x80, 0x00, 0x00, 0x03, 0x00, //24
+0x32, 0x80										//32
+};
+
 void nal_pps_init() {
 }
 
-void nal_pps_parse(nal_buffer_t * pnal_buffer) {
+void nal_pps_parse(nal_buffer_t * pnal_buffer)
+{
+	//write PPS_NAL unit to file
+	copy_nal_to_file(pnal_buffer, outfile);
+	//write SEI_MSG
+	fwrite(&SEI_MSG, sizeof(SEI_MSG), 1, outfile);
+}
+
+void print_nal_pps_parse(nal_buffer_t * pnal_buffer) {
 	dump_nal_buffer(pnal_buffer);
 	pnal_buffer->pos += 2;
 	fprintf(stdout, "\tpps_pic_parameter_set_id=%d\n", read_uev(pnal_buffer));

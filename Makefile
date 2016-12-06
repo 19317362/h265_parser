@@ -1,5 +1,5 @@
-hevc_parser: *.cpp
-	gcc -o hevc_parser *.cpp
+hevc2hdr: *.cpp
+	gcc -o hevc2hdr *.cpp
 
 clean:
-	rm hevc_parser
+	rm hevc2hdr

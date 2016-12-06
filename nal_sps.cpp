@@ -184,20 +184,27 @@ void print_nal_sps_parse(nal_buffer_t * pnal_buffer) {
  * Process data from pnal_buffer
  */
 void nal_sps_parse(nal_buffer_t * pnal_buffer) {
-	//Decode SPS NUL rbsp data (remove 0x03 stuff)
+	//Decode SPS NAL rbsp data (remove 0x03 stuff)
 	nal_buffer_t nal_buffer_decoded = {0};
 	decode_nul_rbsp(pnal_buffer, &nal_buffer_decoded, pnal_buffer->posmax);
 	nal_buffer_decoded.posmax = nal_buffer_decoded.pos;
 	nal_buffer_decoded.pos = 0;
 	nal_buffer_decoded.bitpos = 8;
 
-	//parse SPS NUL to structure
+	//parse SPS NAL to structure
 	nal_sps_data_t* parset_sps_data;
 	parset_sps_data = (nal_sps_data_t *)malloc(sizeof(nal_sps_data_t));
 	memset(parset_sps_data, 0, sizeof(nal_sps_data_t));
 	nal_sps_parse_data(&nal_buffer_decoded, parset_sps_data);
 	
 	//change data
+	parset_sps_data->vui_parameters.video_signal_type_present_flag |= 1;
+	parset_sps_data->vui_parameters.video_format = 5;
+	parset_sps_data->vui_parameters.video_full_range_flag |= 1;
+	parset_sps_data->vui_parameters.colour_description_present_flag |= 1;
+	parset_sps_data->vui_parameters.colour_primaries = 9;
+	parset_sps_data->vui_parameters.transfer_characteristics = 16;
+	parset_sps_data->vui_parameters.matrix_coefficients = 9;
 
 	//write data to byte buffer
 	nal_buffer_t buffer_to_write;

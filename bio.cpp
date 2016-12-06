@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "cio.h"
+#include "debug.h"
 #include <cstdlib>
 
 void align_to_byte(nal_buffer_t * pnal_buffer) {
@@ -18,13 +19,12 @@ uint8 read_bit(nal_buffer_t * pnal_buffer) {
 	}
 
 	if (pnal_buffer->pos >= pnal_buffer->posmax) {
-		fprintf(stdout, "!!! nal buffer overrun !!!\n");
+		fprintf(stderr, "!!! nal buffer overrun !!!\n");
 	}
 
 	uint8 ret = pnal_buffer->data[pnal_buffer->pos] & (1 << (pnal_buffer->bitpos - 1));
 	pnal_buffer->bitpos--;
-	//fprintf(stdout, "\t\t%02x[%d] = %d\n", pnal_buffer->data[pnal_buffer->pos], pnal_buffer->bitpos, ret);
-	fprintf(stdout, "%d", ret > 0 ? 1 : 0);
+	debug("%d", ret > 0 ? 1 : 0);
 	return ret > 0 ? 1 : 0;
 }
 
@@ -45,14 +45,14 @@ uint64 read_bits64(nal_buffer_t * pnal_buffer, int nbits) {
 }
 
 uint32 read_uev(nal_buffer_t * pnal_buffer) { // read exp-golomb code
-	fprintf(stdout, "[");
+	debug("[");
 	int zero_leading_bits = -1;
 	uint8 b = 0;
 	for (b = 0; !b; zero_leading_bits++) {
 		b = read_bit(pnal_buffer);
 	}
 	uint32 ret = (1 << zero_leading_bits) - 1 + read_bits(pnal_buffer, zero_leading_bits);
-	fprintf(stdout, "]");
+	debug("]");
 	return ret;
 }
 
@@ -72,16 +72,10 @@ int write_bit(nal_buffer_t * pnal_buffer, uint8 b)
 		pnal_buffer->pos++;
 		pnal_buffer->bitpos = 8;
 	}
-
-//	if (pnal_buffer->pos >= pnal_buffer->posmax) {
-//		fprintf(stdout, "!!! nal buffer overrun !!!\n");
-//	}
 	uint8 ret = (b & 1);
 	pnal_buffer->data[pnal_buffer->pos] |= (b & 1) << (pnal_buffer->bitpos -1);
 	pnal_buffer->bitpos--;
-
-	//fprintf(stdout, "\t\t%02x[%d] = %d\n", nal_buffer.data[nal_buffer.pos], nal_buffer.bitpos, ret);
-	fprintf(stdout, "%d", ret > 0 ? 1 : 0);
+	debug("%d", ret > 0 ? 1 : 0);
 	return 1;
 }
 
@@ -127,43 +121,19 @@ int write_bits(nal_buffer_t * pnal_buffer, void * v , int nbits)
 		}
 		return nbits;
 	}
-	fprintf(stdout, "!!! can't write more then 64 bits !!!\n");
+	fprintf(stderr, "!!! can't write more then 64 bits !!!\n");
 	return 0;
 }
 
 int write_uev(nal_buffer_t * pnal_buffer, uint32 num) //write exp-golomb code
 {
-	fprintf(stdout, "[");
+	debug("[");
 	if (num == 0xFFFFFFFF)
 	{
-		fprintf(stdout, "!!! can't write more then 32bit uev!!!\n");
+		fprintf(stderr, "!!! can't write more then 32bit uev!!!\n");
 		return 0;
 	}
-/*	uint32 absV = num;
-	uint8 stopLoop = 0;
-	int k = 0;
-	int i = 0;
-	do
-		if (absV >= (1 << k))
-		{
-			write_bit(pnal_buffer, 1);
-			i++;
-			absV = absV - (1 << k);
-			k++;
-		}
-		else
-		{
-			write_bit(pnal_buffer, 0);
-			i++;
-			while (k--)
-			{
-				write_bit(pnal_buffer, (absV >> k) & 1);
-				i++;
-			}
 
-			stopLoop = 1;
-		}
-	while (!stopLoop);*/
 	int pos = 0;
 	uint32 x = num + 1;
 	for (int i = 32; i > 0; i--)
@@ -192,9 +162,7 @@ int write_uev(nal_buffer_t * pnal_buffer, uint32 num) //write exp-golomb code
 		write_bits(pnal_buffer, &zero, leading_zeros);
 		write_bits(pnal_buffer, &x, leading_zeros + 1);
 	}
-
-
-	fprintf(stdout, "]");
+	debug("]");
 	return 32 - pos + 32 - pos -1;
 }
 

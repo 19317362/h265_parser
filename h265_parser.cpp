@@ -11,6 +11,7 @@
 #include "nal_sps.h"
 #include "nal_vps.h"
 #include <cstdlib>
+#include "debug.h"
 
 // read chunk for stream
 #define READ_BUF_LEN 16384 
@@ -50,7 +51,6 @@ const char * NAL_UNIT_TYPES[NALUT_MAX+1] = {
 
 FILE * infile;
 FILE * outfile;
-long long byteWriteCounter;
 
 typedef void(*nal_unit_initer)();
 typedef void(*nal_unit_parser)(nal_buffer_t *);
@@ -92,7 +92,7 @@ nal_unit_parser nal_parsers[NALUT_MAX + 1] = {
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 16 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 24 
 
-	nal_noparse, (nal_unit_parser)nal_sps_parse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,// 32 
+	nal_noparse, nal_sps_parse, nal_pps_parse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, // 32 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 40 
 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 48 
@@ -108,8 +108,16 @@ int main(int argc, char ** argv)
 		fprintf(stderr, "usage: %s <stream.265>\n", argv[0]);
 		return 1;
 	}
+	FILE * infile;
+	if (!strcmp(argv[1], "-"))
+	{
+		infile = freopen(argv[1], "rb", stdin);
+	}
+	else
+	{
+		infile = fopen(argv[1], "rb");
+	}
 
-	FILE * infile = fopen(argv[1], "rb");
 	if (!infile) {
 		fprintf(stderr, "cannot open file %s\n", argv[1]);
 		return 2;
@@ -127,7 +135,6 @@ int main(int argc, char ** argv)
 	bool extra_zero = false;
 	nal_buffer_t nal_buffer = { 0 };
 	uint8 nut = 0;
-	byteWriteCounter = 0;
 
 	while (!feof(infile)) {
 		size_t bytes_read = fread(buffer, 1, READ_BUF_LEN, infile);
@@ -212,7 +219,7 @@ int main(int argc, char ** argv)
 				nal_buffer.bitpos = 8;
 				nal_parsers[nut](&nal_buffer);
 				nut = (buffer[i] & 0x7e) >> 1;
-				fprintf(stdout, "\n%08llx: nal unit: %02x -> %d, %s\n", byte_counter, buffer[i], nut, NAL_UNIT_TYPES[nut]);
+				debug("\n%08llx: nal unit: %02x -> %d, %s\n", byte_counter, buffer[i], nut, NAL_UNIT_TYPES[nut]);
 				// reset buffer for the next NAL unit
 				nal_buffer.pos = 0;
 				nal_buffer.bitpos = 8;
@@ -221,7 +228,6 @@ int main(int argc, char ** argv)
 					nal_initers[nut]();
 					copy_to_nal_buf(&nal_buffer, buffer[i]);
 				}
-				printf("Readead minus writed: %lld\n", byte_counter - byteWriteCounter);
 				state = STATE_EXPECTING_ZERO_0;
 				extra_zero = false;
 				break;
@@ -229,7 +235,14 @@ int main(int argc, char ** argv)
 			byte_counter++;
 		}
 	}
-	printf("Total writed %d bytes\n", byteWriteCounter);
+	//need to write last NAL unit
+	if (nal_buffer.pos > 0)
+	{
+		nal_buffer.posmax = nal_buffer.pos;
+		nal_buffer.pos = 0;
+		nal_buffer.bitpos = 8;
+		nal_parsers[nut](&nal_buffer);
+	}
 	fclose(infile);
 	fclose(outfile);
 }

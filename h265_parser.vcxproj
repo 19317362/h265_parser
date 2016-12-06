@@ -89,6 +89,7 @@
   <ItemGroup>
     <ClInclude Include="bio.h" />
     <ClInclude Include="cio.h" />
+    <ClInclude Include="debug.h" />
     <ClInclude Include="h265_parser.h" />
     <ClInclude Include="nal_aud.h" />
     <ClInclude Include="nal_common.h" />

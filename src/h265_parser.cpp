@@ -111,7 +111,7 @@ int main(int argc, char ** argv)
 	FILE * infile;
 	if (!strcmp(argv[1], "-"))
 	{
-		infile = freopen(argv[1], "rb", stdin);
+		infile = stdin;
 	}
 	else
 	{
@@ -129,7 +129,7 @@ int main(int argc, char ** argv)
 		return 2;
 	}
 
-	uint8 buffer[READ_BUF_LEN];
+	uint8 buffer[READ_BUF_LEN] = {0};
 	long long byte_counter = 0;
 	int state = STATE_EXPECTING_ZERO_0;
 	bool extra_zero = false;

@@ -1,6 +1,7 @@
 #include "cio.h"
 #include <cstring>
 #include "debug.h"
+#include <cstdlib>
 
 #define BUFFER_MAX 1024
 
@@ -19,6 +20,12 @@ void dump_nal_buffer(nal_buffer_t * pnal_buffer) {
 }
 
 void copy_to_nal_buf(nal_buffer_t * pnal_buffer, uint8 c) {
+	if (pnal_buffer->pos >= NAL_BUFFER_MAX )
+	{
+		fprintf(stderr, "\nNAL unit is too big. NAL_BUFFER_MAX need to be increased to fix.\n at %s, line %d.\n",
+              __FILE__, __LINE__);
+		exit(1);
+	}
 	pnal_buffer->data[pnal_buffer->pos] = c;
 	pnal_buffer->pos++;
 }

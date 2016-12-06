@@ -4,7 +4,6 @@
 /cio.obj
 /cl.command.1.tlog
 /h265_parser.exe
-/h265_parser.ilk
 /h265_parser.lastbuildstate
 /h265_parser.log
 /h265_parser.obj
@@ -22,17 +21,4 @@
 /nal_sei.obj
 /nal_sps.obj
 /nal_vps.obj
-/vc110.idb
 /vc110.pdb
-/link.14104-cvtres.read.1.tlog
-/link.14104-cvtres.write.1.tlog
-/link.14104-rc.read.1.tlog
-/link.14104-rc.write.1.tlog
-/link.14104.read.1.tlog
-/link.14104.write.1.tlog
-/link.9920-cvtres.read.1.tlog
-/link.9920-cvtres.write.1.tlog
-/link.9920-rc.read.1.tlog
-/link.9920-rc.write.1.tlog
-/link.9920.read.1.tlog
-/link.9920.write.1.tlog

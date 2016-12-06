@@ -76,28 +76,28 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="bio.cpp" />
-    <ClCompile Include="cio.cpp" />
-    <ClCompile Include="h265_parser.cpp" />
-    <ClCompile Include="nal_aud.cpp" />
-    <ClCompile Include="nal_common.cpp" />
-    <ClCompile Include="nal_pps.cpp" />
-    <ClCompile Include="nal_sei.cpp" />
-    <ClCompile Include="nal_sps.cpp" />
-    <ClCompile Include="nal_vps.cpp" />
+    <ClCompile Include="src\bio.cpp" />
+    <ClCompile Include="src\cio.cpp" />
+    <ClCompile Include="src\h265_parser.cpp" />
+    <ClCompile Include="src\nal_aud.cpp" />
+    <ClCompile Include="src\nal_common.cpp" />
+    <ClCompile Include="src\nal_pps.cpp" />
+    <ClCompile Include="src\nal_sei.cpp" />
+    <ClCompile Include="src\nal_sps.cpp" />
+    <ClCompile Include="src\nal_vps.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="bio.h" />
-    <ClInclude Include="cio.h" />
-    <ClInclude Include="debug.h" />
-    <ClInclude Include="h265_parser.h" />
-    <ClInclude Include="nal_aud.h" />
-    <ClInclude Include="nal_common.h" />
-    <ClInclude Include="nal_pps.h" />
-    <ClInclude Include="nal_sei.h" />
-    <ClInclude Include="nal_sps.h" />
-    <ClInclude Include="nal_vps.h" />
-    <ClInclude Include="types.h" />
+    <ClInclude Include="src\bio.h" />
+    <ClInclude Include="src\cio.h" />
+    <ClInclude Include="src\debug.h" />
+    <ClInclude Include="src\h265_parser.h" />
+    <ClInclude Include="src\nal_aud.h" />
+    <ClInclude Include="src\nal_common.h" />
+    <ClInclude Include="src\nal_pps.h" />
+    <ClInclude Include="src\nal_sei.h" />
+    <ClInclude Include="src\nal_sps.h" />
+    <ClInclude Include="src\nal_vps.h" />
+    <ClInclude Include="src\types.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -421,6 +421,14 @@ void hrd_parameters(nal_buffer_t* pnal_buffer, uint8 commonInfPresentFlag, uint3
 		{
 			hrd_parameters_data->fixed_pic_rate_within_cvs_flag[i] = read_bit(pnal_buffer);
 		}
+		// Rec. ITU T H.265 v3 (04/2015) ... E.3.2
+		// When fixed_pic_rate_general_flag[ i ] is equal to 1, the value of fixed_pic_rate_within_cvs_flag[ i ] 
+		// is inferred to be equal to 1.
+		else
+		{
+			hrd_parameters_data->fixed_pic_rate_within_cvs_flag[i] = hrd_parameters_data->fixed_pic_rate_general_flag[i];
+		}
+
 		if (hrd_parameters_data->fixed_pic_rate_within_cvs_flag[i])
 		{
 			hrd_parameters_data->elemental_duration_in_tc_minus1[i] = read_uev(pnal_buffer);
@@ -901,7 +909,6 @@ void write_hrd_parameters(nal_buffer_t* pnal_buffer, uint8 commonInfPresentFlag,
 		{
 			write_bit(pnal_buffer, hrd_parameters_data->fixed_pic_rate_within_cvs_flag[i]);
 		}
-		write_bit(pnal_buffer, hrd_parameters_data->fixed_pic_rate_within_cvs_flag[i]);
 		if (hrd_parameters_data->fixed_pic_rate_within_cvs_flag[i])
 		{
 			write_uev(pnal_buffer, hrd_parameters_data->elemental_duration_in_tc_minus1[i]);

@@ -1,5 +1,13 @@
 ﻿#include <stdio.h>
 #include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
+
+#ifdef _WIN32
+#include "getopt.h"
+#else 
+#include <unistd.h>
+#endif
 
 #include "types.h"
 #include "cio.h"
@@ -12,6 +20,7 @@
 #include "nal_vps.h"
 #include <cstdlib>
 #include "debug.h"
+#include "nal_idr_n_lp.h"
 
 // read chunk for stream
 #define READ_BUF_LEN 16384 
@@ -22,6 +31,10 @@
 #define STATE_EXPECTING_ONE 2
 #define STATE_EXPECTING_NAL_UNIT_TYPE 3
 #define STATE_EXPECTING_THREE 4
+
+
+
+
 
 // total number of NUT (6 bit)
 #define NALUT_MAX 63
@@ -50,7 +63,9 @@ const char * NAL_UNIT_TYPES[NALUT_MAX+1] = {
 };
 
 FILE * infile;
-FILE * outfile;
+FILE * outfile;	
+//Global flags
+int skip_sps_parse_flag = 0;
 
 typedef void(*nal_unit_initer)();
 typedef void(*nal_unit_parser)(nal_buffer_t *);
@@ -65,14 +80,14 @@ void nal_noparse(nal_buffer_t * pnal_buffer)
 }
 
 bool need_nal_copy[NALUT_MAX + 1] = {
-	true, true, true, true, false, false, false, true,	// 0
-	true, true, true, true, false, false, false, true,	// 8
-	true, true, true, true, false, false, false, true,	// 16
-	true, true, true, true, false, false, false, true, // 24
-	true, true, true, true, false, false, false, true,		// 32
-	true, true, true, true, false, false, false, true,	// 40
-	true, true, true, true, false, false, false, true,	// 48
-	true, true, true, true, false, false, false, true,	// 56
+	true, true, true, true, true, true, true, true,	// 0
+	true, true, true, true, true, true, true, true,	// 8
+	true, true, true, true, true, true, true, true,	// 16
+	true, true, true, true, true, true, true, true, // 24
+	true, true, true, true, true, true, true, true,	// 32
+	true, true, true, true, true, true, true, true,	// 40
+	true, true, true, true, true, true, true, true,	// 48
+	true, true, true, true, true, true, true, true,	// 56
 };
 
 nal_unit_initer nal_initers[NALUT_MAX + 1] = {
@@ -89,7 +104,7 @@ nal_unit_initer nal_initers[NALUT_MAX + 1] = {
 nal_unit_parser nal_parsers[NALUT_MAX + 1] = {
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		//  0 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		//  8 
-	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 16 
+	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_idr_n_lp_parse, nal_noparse, nal_noparse, nal_noparse,		// 16 
 	nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse,		// 24 
 
 	nal_noparse, nal_sps_parse, nal_pps_parse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, nal_noparse, // 32 
@@ -103,19 +118,42 @@ nal_unit_parser nal_parsers[NALUT_MAX + 1] = {
 
 int main(int argc, char ** argv)
 {
-	// TODO: parse options here ..
+
+	char* infilename;
+	char* outfilename;
+	int c;
+
+	opterr = 0;
+
+	while ((c = getopt(argc, argv, "n")) != -1)
+	{
+		switch (c)
+		{
+		case 'n':
+			skip_sps_parse_flag = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	
+	infilename = argv[optind];
+	outfilename = argv[optind + 1];
+
 	if (argc < 2) {
-		fprintf(stderr, "usage: %s <stream.265>\n", argv[0]);
+		fprintf(stderr, "usage: %s [-n] <stream.265>\n", argv[0]);
+		fprintf(stderr, "\t-n: no parse SPS, just copy as is.\n");
 		return 1;
 	}
+
 	FILE * infile;
-	if (!strcmp(argv[1], "-"))
+	if (!strcmp(infilename, "-"))
 	{
 		infile = stdin;
 	}
 	else
 	{
-		infile = fopen(argv[1], "rb");
+		infile = fopen(infilename, "rb");
 	}
 
 	if (!infile) {
@@ -123,7 +161,7 @@ int main(int argc, char ** argv)
 		return 2;
 	}
 
-	outfile = fopen(argv[2], "wb");
+	outfile = fopen(outfilename, "wb");
 	if (!outfile) {
 		fprintf(stderr, "cannot open file %s\n", argv[2]);
 		return 2;
@@ -134,6 +172,9 @@ int main(int argc, char ** argv)
 	int state = STATE_EXPECTING_ZERO_0;
 	bool extra_zero = false;
 	nal_buffer_t nal_buffer = { 0 };
+	nal_buffer.data = (uint8*) malloc(NAL_BUFFER_MAX);
+	memset(nal_buffer.data, 0, NAL_BUFFER_MAX);
+
 	uint8 nut = 0;
 
 	while (!feof(infile)) {
@@ -243,6 +284,7 @@ int main(int argc, char ** argv)
 		nal_buffer.bitpos = 8;
 		nal_parsers[nut](&nal_buffer);
 	}
+	free(nal_buffer.data);
 	fclose(infile);
 	fclose(outfile);
 }

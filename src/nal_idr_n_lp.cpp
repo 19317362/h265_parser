@@ -1,0 +1,29 @@
+#include <stdio.h>
+#include "types.h"
+#include "bio.h"
+#include "nal_common.h"
+#include "nal_idr_n_lp.h"
+
+extern FILE * outfile;
+
+const uint8 SEI_MSG[34] = {
+0x00, 0x00, 0x00, 0x01, 0x4E, 0x01, 0x89, 0x18, //0
+0x33, 0xC2, 0x86, 0xC4, 0x1D, 0x4C, 0x0B, 0xB8, //8
+0x84, 0xD0, 0x3E, 0x80, 0x3D, 0x13, 0x40, 0x42, //15
+0x00, 0x98, 0x96, 0x80, 0x00, 0x00, 0x03, 0x00, //24
+0x32, 0x80										//32
+};
+
+void nal_idr_n_lp_init() {
+}
+
+void nal_idr_n_lp_parse(nal_buffer_t * pnal_buffer)
+{
+	//write SEI_MSG
+	fwrite(&SEI_MSG, sizeof(SEI_MSG), 1, outfile);
+	//write idr_n_lp unit to file
+	copy_nal_to_file(pnal_buffer, outfile);
+}
+
+void nal_idr_n_lp_pps(nal_buffer_t * pnal_buffer){
+}

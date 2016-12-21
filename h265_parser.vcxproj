@@ -78,6 +78,7 @@
   <ItemGroup>
     <ClCompile Include="src\bio.cpp" />
     <ClCompile Include="src\cio.cpp" />
+    <ClCompile Include="src\getopt.cpp" />
     <ClCompile Include="src\h265_parser.cpp" />
     <ClCompile Include="src\nal_aud.cpp" />
     <ClCompile Include="src\nal_common.cpp" />
@@ -90,6 +91,7 @@
     <ClInclude Include="src\bio.h" />
     <ClInclude Include="src\cio.h" />
     <ClInclude Include="src\debug.h" />
+    <ClInclude Include="src\getopt.h" />
     <ClInclude Include="src\h265_parser.h" />
     <ClInclude Include="src\nal_aud.h" />
     <ClInclude Include="src\nal_common.h" />

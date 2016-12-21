@@ -421,7 +421,6 @@ void hrd_parameters(nal_buffer_t* pnal_buffer, uint8 commonInfPresentFlag, uint3
 		{
 			hrd_parameters_data->fixed_pic_rate_within_cvs_flag[i] = read_bit(pnal_buffer);
 		}
-		hrd_parameters_data->fixed_pic_rate_within_cvs_flag[i] = read_bit(pnal_buffer);
 		if (hrd_parameters_data->fixed_pic_rate_within_cvs_flag[i])
 		{
 			hrd_parameters_data->elemental_duration_in_tc_minus1[i] = read_uev(pnal_buffer);
@@ -582,22 +581,24 @@ void vui_parameters(nal_buffer_t* pnal_buffer, uint8 sps_max_sub_layers_minus1, 
 		vui_parameters_data->def_disp_win_top_offset = read_uev(pnal_buffer);
 		vui_parameters_data->def_disp_win_bottom_offset = read_uev(pnal_buffer);
 	}
+
 	vui_parameters_data->vui_timing_info_present_flag = (uint8)read_bit(pnal_buffer);
-	if (vui_parameters_data->vui_timing_info_present_flag)
-	{
-		vui_parameters_data->vui_num_units_in_tick = read_bits(pnal_buffer, 32);
-		vui_parameters_data->vui_time_scale = read_bits(pnal_buffer, 32);
-		vui_parameters_data->vui_poc_proportional_to_timing_flag = (uint8)read_bit(pnal_buffer);
-		if (vui_parameters_data->vui_poc_proportional_to_timing_flag)
+		if (vui_parameters_data->vui_timing_info_present_flag)
 		{
-			vui_parameters_data->vui_num_ticks_poc_diff_one_minus1 = read_uev(pnal_buffer);
+			vui_parameters_data->vui_num_units_in_tick = read_bits(pnal_buffer, 32);
+			vui_parameters_data->vui_time_scale = read_bits(pnal_buffer, 32);
+			vui_parameters_data->vui_poc_proportional_to_timing_flag = (uint8)read_bit(pnal_buffer);
+			if (vui_parameters_data->vui_poc_proportional_to_timing_flag)
+			{
+				vui_parameters_data->vui_num_ticks_poc_diff_one_minus1 = read_uev(pnal_buffer);
+			}
+			vui_parameters_data->vui_hrd_parameters_present_flag = (uint8)read_bit(pnal_buffer);
+			if (vui_parameters_data->vui_hrd_parameters_present_flag)
+			{
+				
+				hrd_parameters(pnal_buffer, 1, sps_max_sub_layers_minus1, &vui_parameters_data->hrd_parameters);
+			}
 		}
-		vui_parameters_data->vui_hrd_parameters_present_flag = (uint8)read_bit(pnal_buffer);
-		if (vui_parameters_data->vui_hrd_parameters_present_flag)
-		{
-			hrd_parameters(pnal_buffer, 1, sps_max_sub_layers_minus1, &vui_parameters_data->hrd_parameters);
-		}
-	}
 	vui_parameters_data->bitstream_restriction_flag = (uint8)read_bit(pnal_buffer);
 	if (vui_parameters_data->bitstream_restriction_flag)
 	{

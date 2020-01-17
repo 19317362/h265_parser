@@ -3,3 +3,7 @@
 /h265_parser.v11.suo
 *.vcxproj.user
 *.265
+.vs/
+/Debug
+/Release
+/Test

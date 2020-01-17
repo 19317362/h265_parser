@@ -97,7 +97,7 @@ int write_bits(nal_buffer_t * pnal_buffer, void * v , int nbits)
 		for (int i = nbits; i > 0; i--)
 		{
 			b = (*((uint16 *)v) >> (i - 1)) & 1;
-			write_bit(pnal_buffer, b);
+			write_bit(pnal_buffer, static_cast<uint8>( b));
 		}
 		return nbits;
 	}
@@ -117,7 +117,7 @@ int write_bits(nal_buffer_t * pnal_buffer, void * v , int nbits)
 		for (int i = nbits; i > 0; i--)
 		{
 			b = (*((uint64 *)v) >> (i - 1)) & 1;
-			write_bit(pnal_buffer, b);
+			write_bit(pnal_buffer, static_cast<uint8>(b));
 		}
 		return nbits;
 	}
@@ -138,7 +138,7 @@ int write_uev(nal_buffer_t * pnal_buffer, uint32 num) //write exp-golomb code
 	uint32 x = num + 1;
 	for (int i = 32; i > 0; i--)
 	{
-		if ((x >> i - 1) & 1)
+		if ((x >> (i - 1)) & 1)
 		{
 			break;
 		}
